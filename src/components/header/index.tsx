@@ -17,7 +17,7 @@ export default class Header extends Component<{}, HeaderState> {
 
   openSettings = () => this.dialog.MDComponent.show();
 
-  dialogRef = dialog => (this.dialog = dialog);
+  dialogRef = (dialog: any) => (this.dialog = dialog);
 
   toggleDarkTheme = () => {
     this.setState(

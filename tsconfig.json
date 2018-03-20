@@ -15,11 +15,11 @@
     "importHelpers": true,
     "noEmitHelpers": true,
     "noEmitOnError": true,
-    //"noImplicitAny": true,
+    "noImplicitAny": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "noUnusedLocals": true,
-    //"strictNullChecks": true,
+    "strictNullChecks": true,
     "pretty": true,
     "removeComments": true,
     "lib": ["es6", "dom"]
