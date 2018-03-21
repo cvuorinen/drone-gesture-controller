@@ -8,12 +8,23 @@ import "preact-material-components/List/style.css";
 import "preact-material-components/Toolbar/style.css";
 import "preact-material-components/Button/style.css";
 
+import Logger from "../../logger";
+
 interface HeaderState {
   darkThemeEnabled: boolean;
+  log: string[];
 }
 
 export default class Header extends Component<{}, HeaderState> {
   dialog: any;
+
+  constructor() {
+    super();
+    this.state = {
+      darkThemeEnabled: false,
+      log: []
+    };
+  }
 
   openSettings = () => this.dialog.MDComponent.show();
 
@@ -34,6 +45,15 @@ export default class Header extends Component<{}, HeaderState> {
     );
   };
 
+  componentDidMount() {
+    Logger.messages.subscribe(message => {
+      this.state.log.push(message);
+      this.setState({
+        log: this.state.log
+      });
+    });
+  }
+
   render() {
     return (
       <div>
@@ -42,8 +62,8 @@ export default class Header extends Component<{}, HeaderState> {
             <Toolbar.Section align-start>
               <Toolbar.Title>Drone Gesture Controller</Toolbar.Title>
             </Toolbar.Section>
-            <Toolbar.Section align-end onClick={this.openSettings}>
-              <Toolbar.Icon>settings</Toolbar.Icon>
+            <Toolbar.Section align-end>
+              <Toolbar.Icon onClick={this.openSettings}>settings</Toolbar.Icon>
             </Toolbar.Section>
           </Toolbar.Row>
         </Toolbar>
@@ -52,6 +72,9 @@ export default class Header extends Component<{}, HeaderState> {
           <Dialog.Body>
             <div>
               Enable dark theme <Switch onClick={this.toggleDarkTheme} />
+            </div>
+            <div class="log-output">
+              <pre>{this.state.log.join("")}</pre>
             </div>
           </Dialog.Body>
           <Dialog.Footer>
