@@ -60,7 +60,7 @@ export default class Header extends Component<{}, HeaderState> {
         <Toolbar className="toolbar">
           <Toolbar.Row>
             <Toolbar.Section align-start>
-              <Toolbar.Title>Drone Gesture Controller</Toolbar.Title>
+              <Toolbar.Title>&#10058; DroneCtrl</Toolbar.Title>
             </Toolbar.Section>
             <Toolbar.Section align-end>
               <Toolbar.Icon onClick={this.openSettings}>settings</Toolbar.Icon>
@@ -74,7 +74,7 @@ export default class Header extends Component<{}, HeaderState> {
               Enable dark theme <Switch onClick={this.toggleDarkTheme} />
             </div>
             <div class="log-output">
-              <pre>{this.state.log.join("")}</pre>
+              <textarea>{this.state.log.join("")}</textarea>
             </div>
           </Dialog.Body>
           <Dialog.Footer>

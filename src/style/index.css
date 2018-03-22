@@ -55,13 +55,10 @@ body {
   color: #fff;
 }
 
-.log-output {
-  border: 1px solid #aaa;
-  max-height: 50vh;
-  overflow: auto;
-}
-.log-output pre {
+.log-output textarea {
   margin: 0;
   padding: 5px;
-  white-space: pre-line;
+  width: 100%;
+  min-height: 20vh;
+  max-height: 50vh;
 }
