@@ -3,21 +3,12 @@ import { map, distinctUntilChanged } from "rxjs/operators";
 
 import Device, { DeviceOrientation } from "./device";
 
+// all numbers from -100 to 100 where 0 is no movement
 export type Movement = {
-  tilt: {
-    forward: number;
-    backward: number;
-    left: number;
-    right: number;
-  };
-  rotate: {
-    left: number;
-    right: number;
-  };
-  altitude?: {
-    higher: number;
-    lower: number;
-  };
+  yaw: number; // rotate left/right
+  pitch: number; // forward/backward
+  roll: number; // left/right
+  altitude: number; // up/down
 };
 
 export default class Controller {
@@ -27,7 +18,7 @@ export default class Controller {
     beta: 0,
     gamma: 0
   };
-  public center: DeviceOrientation;
+  public center: DeviceOrientation | null;
   public altitude: Observable<number>;
 
   private sensitivity = 20;
@@ -36,8 +27,8 @@ export default class Controller {
     this.altitude = altitude;
   }
 
-  calibrateOrientation(orientation: DeviceOrientation) {
-    this.center = Object.assign({}, orientation);
+  calibrateOrientation() {
+    this.center = null;
   }
 
   getMovement(): Observable<Movement> {
@@ -58,7 +49,7 @@ export default class Controller {
     orientation: DeviceOrientation
   ): Movement => {
     if (!this.center) {
-      this.calibrateOrientation(orientation);
+      this.center = Object.assign({}, orientation);
     }
 
     this.diff.alpha = this.calculateAngleDiff(
@@ -74,18 +65,43 @@ export default class Controller {
       orientation.gamma
     );
 
-    return {
-      tilt: {
-        forward: this.diff.beta > this.sensitivity ? 1 : 0,
-        backward: this.diff.beta < -this.sensitivity ? 1 : 0,
-        left: this.diff.alpha < -this.sensitivity ? 1 : 0,
-        right: this.diff.alpha > this.sensitivity ? 1 : 0
-      },
-      rotate: {
-        left: this.diff.gamma < -this.sensitivity ? 1 : 0,
-        right: this.diff.gamma > this.sensitivity ? 1 : 0
-      }
+    // use fixed "speed" value for now
+    const defaultSpeed = 30;
+    const move: Movement = {
+      yaw: 0,
+      pitch: 0,
+      roll: 0,
+      altitude: 0
     };
+
+    // simplistic approach: just set default speed when diff is over sensitivity threshold
+    if (this.diff.beta > this.sensitivity) {
+      move.pitch = defaultSpeed;
+    }
+
+    if (this.diff.beta < -this.sensitivity) {
+      move.pitch = -defaultSpeed;
+    }
+
+    if (this.diff.alpha < -this.sensitivity) {
+      move.roll = -defaultSpeed;
+    }
+
+    if (this.diff.alpha > this.sensitivity) {
+      move.roll = defaultSpeed;
+    }
+
+    if (move.roll === 0) {
+      if (this.diff.gamma < -this.sensitivity) {
+        move.yaw = -defaultSpeed;
+      }
+
+      if (this.diff.gamma > this.sensitivity) {
+        move.yaw = defaultSpeed;
+      }
+    }
+
+    return move;
   };
 
   // calculate difference of angle degree for current value from calibrated center point

@@ -3,15 +3,45 @@ import Button from "preact-material-components/Button";
 
 import Device, { DeviceOrientation } from "../../device";
 import Controller, { Movement } from "../../controller";
+import Bluetooth from "../../bluetooth";
+import Drone from "../../drone";
+import Logger from "../../logger";
+
+enum BluetoothStates {
+  NotConnected = "Not connected",
+  Connecting = "Connecting",
+  Connected = "Connected",
+  Error = "Error"
+}
+
+type BluetoothStatus =
+  | BluetoothStates.NotConnected
+  | BluetoothStates.Connecting
+  | BluetoothStates.Connected
+  | BluetoothStates.Error;
 
 interface ControllerState {
   orientation: DeviceOrientation | null;
   movement: Movement | null;
-  error: string | null;
+  bluetoothStatus: BluetoothStatus;
+  droneStatus: boolean;
+  error?: string;
 }
 
 export default class Control extends Component<{}, ControllerState> {
+  drone: Drone;
   controller: Controller;
+  bluetooth: Bluetooth;
+
+  constructor() {
+    super();
+    this.state = {
+      orientation: null,
+      movement: null,
+      bluetoothStatus: BluetoothStates.NotConnected,
+      droneStatus: false
+    };
+  }
 
   componentDidMount() {
     this.controller = new Controller();
@@ -24,6 +54,9 @@ export default class Control extends Component<{}, ControllerState> {
       }
     );
 
+    this.bluetooth = new Bluetooth();
+    this.drone = new Drone(this.controller);
+
     Device.getOrientation().subscribe(
       orientation => {
         this.setState({ orientation });
@@ -34,7 +67,81 @@ export default class Control extends Component<{}, ControllerState> {
     );
   }
 
+  connect() {
+    this.setState({ bluetoothStatus: BluetoothStates.Connecting });
+    this.bluetooth
+      .connect(this.drone.getBlutoothDiscoveryOptions())
+      .then(() => {
+        this.setState({ bluetoothStatus: BluetoothStates.Connected });
+        return this.drone.connect(this.bluetooth).then(() => {
+          this.setState({ droneStatus: true });
+        });
+      })
+      .catch(e => {
+        Logger.error("Bluetooth connect failed: " + e);
+        this.setState({
+          bluetoothStatus: BluetoothStates.Error
+        });
+      });
+
+    this.bluetooth.getNotifications().subscribe(([id, event]) => {
+      console.log("ctrl.bluetooth.notification", id, event);
+    });
+  }
+
   render() {
+    return (
+      <div>
+        <h2>Hello from ctrl</h2>
+        {this.renderBluetoothControl()}
+        {this.renderDroneControl()}
+        {this.renderOrientation()}
+      </div>
+    );
+  }
+
+  renderBluetoothControl() {
+    const allowConnect =
+      this.state.bluetoothStatus !== BluetoothStates.Connected &&
+      this.state.bluetoothStatus !== BluetoothStates.Connecting;
+
+    return (
+      <div>
+        <div>Bluetooth: {this.state.bluetoothStatus}</div>
+        {allowConnect ? (
+          <Button onClick={() => this.connect()}>Connect</Button>
+        ) : null}
+      </div>
+    );
+  }
+
+  renderDroneControl() {
+    if (!this.state.droneStatus) {
+      return <div>Drone not connected</div>;
+    }
+
+    return (
+      <div>
+        <Button onClick={() => this.drone.takeOff()}>Takeoff</Button>
+        <Button onClick={() => this.drone.land()}>Land</Button>
+        <Button onClick={() => this.drone.emergencyCutOff()}>Emergency</Button>
+        <div style={{ textAlign: "center" }}>
+          <br />
+          <br />
+          <Button
+            raised
+            style={{ padding: "40px", lineHeight: "5px" }}
+            onTouchStart={() => this.drone.startMovement()}
+            onTouchEnd={() => this.drone.stopMovement()}
+          >
+            MOVE
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  renderOrientation() {
     if (this.state.error) {
       return <div>error: {this.state.error}</div>;
     }
@@ -43,33 +150,21 @@ export default class Control extends Component<{}, ControllerState> {
       return <div>waiting</div>;
     }
 
-    const center = this.controller.center;
-    const diff = this.controller.diff;
+    //const center = this.controller.center;
+    //const diff = this.controller.diff;
 
     return (
       <div>
-        <h2>Hello from ctrl</h2>
-        <Button
-          style={{ float: "right" }}
-          onClick={() =>
-            this.controller.calibrateOrientation(this.state
-              .orientation as DeviceOrientation)
-          }
-        >
-          Calibrate
-        </Button>
-        <div>
-          <pre>{JSON.stringify(this.state.orientation, null, 2)}</pre>
+        {/*<pre>{JSON.stringify(this.state.orientation, null, 2)}</pre>
 
           <h3>Center</h3>
           <pre>{JSON.stringify(center, null, 2)}</pre>
 
           <h3>Diff</h3>
           <pre>{JSON.stringify(diff, null, 2)}</pre>
-
-          <h3>Movement</h3>
-          <pre>{JSON.stringify(this.state.movement, null, 2)}</pre>
-        </div>
+*/}
+        <h3>Movement</h3>
+        <pre>{JSON.stringify(this.state.movement, null, 2)}</pre>
       </div>
     );
   }
