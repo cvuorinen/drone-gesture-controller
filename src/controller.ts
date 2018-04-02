@@ -6,9 +6,9 @@ import Device, { DeviceOrientation } from "./device";
 // all numbers from -100 to 100 where 0 is no movement
 export type Movement = {
   yaw: number; // rotate left/right
-  pitch: number; // forward/backward
+  pitch: number; // backward/forward
   roll: number; // left/right
-  altitude: number; // up/down
+  altitude: number; // down/up
 };
 
 export default class Controller {
@@ -21,28 +21,31 @@ export default class Controller {
   public center: DeviceOrientation | null;
   public altitude: Observable<number>;
 
-  private sensitivity = 20;
+  private sensitivity = {
+    yaw: 20,
+    pitch: 15,
+    roll: 20,
+    altitude: 20
+  };
 
-  connectAltitudeControl(altitude: Observable<number>) {
+  public connectAltitudeControl(altitude: Observable<number>): void {
     this.altitude = altitude;
   }
 
-  calibrateOrientation() {
+  public calibrateOrientation(): void {
     this.center = null;
   }
 
-  getMovement(): Observable<Movement> {
+  public getMovement(): Observable<Movement> {
     // TODO combine with altitude control
-    return (
-      Device.getOrientation()
-        .pipe(map(this.mapOrientationToMovement))
+    return Device.getOrientation()
+      .pipe(
+        map(this.mapOrientationToMovement),
         // only emit if any value changed from previous
-        .pipe(
-          distinctUntilChanged(
-            (a, b) => JSON.stringify(a) === JSON.stringify(b)
-          )
+        distinctUntilChanged(
+          (a, b) => JSON.stringify(a) === JSON.stringify(b)
         )
-    );
+      );
   }
 
   private mapOrientationToMovement = (
@@ -75,28 +78,28 @@ export default class Controller {
     };
 
     // simplistic approach: just set default speed when diff is over sensitivity threshold
-    if (this.diff.beta > this.sensitivity) {
+    if (this.diff.beta > this.sensitivity.pitch) {
       move.pitch = defaultSpeed;
     }
 
-    if (this.diff.beta < -this.sensitivity) {
+    if (this.diff.beta < -this.sensitivity.pitch) {
       move.pitch = -defaultSpeed;
     }
 
-    if (this.diff.alpha < -this.sensitivity) {
-      move.roll = -defaultSpeed;
-    }
-
-    if (this.diff.alpha > this.sensitivity) {
+    if (this.diff.gamma < -this.sensitivity.roll) {
       move.roll = defaultSpeed;
     }
 
+    if (this.diff.gamma > this.sensitivity.roll) {
+      move.roll = -defaultSpeed;
+    }
+
     if (move.roll === 0) {
-      if (this.diff.gamma < -this.sensitivity) {
+      if (this.diff.alpha < -this.sensitivity.yaw) {
         move.yaw = -defaultSpeed;
       }
 
-      if (this.diff.gamma > this.sensitivity) {
+      if (this.diff.alpha > this.sensitivity.yaw) {
         move.yaw = defaultSpeed;
       }
     }
