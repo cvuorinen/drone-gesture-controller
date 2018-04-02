@@ -24,9 +24,9 @@ const Device = {
   getOrientation(): Observable<DeviceOrientation> {
     return (
       fromEvent<DeviceOrientationEvent>(window, "deviceorientation")
-        // throttle events and sync with requestAnimationFrame
-        .pipe(throttleTime(throttleAmount, animationFrame))
         .pipe(
+          // throttle events and sync with requestAnimationFrame
+          throttleTime(throttleAmount, animationFrame),
           map(({ alpha, beta, gamma }) => {
             // when device orientation not supported, it might still emit one event with null values
             if (alpha === null || beta === null || gamma === null) {
@@ -39,10 +39,8 @@ const Device = {
               beta: Math.round(beta),
               gamma: Math.round(gamma)
             };
-          })
-        )
-        // only emit if any value changed (after rounding)
-        .pipe(
+          }),
+          // only emit if any value changed (after rounding)
           distinctUntilChanged(
             (a, b) => JSON.stringify(a) === JSON.stringify(b)
           )
