@@ -3,9 +3,10 @@ import Button from "preact-material-components/Button";
 
 import { AppContext } from '../app';
 import Device, { DeviceOrientation } from "../../device";
-import Controller, { Movement } from "../../controller";
+import Controller from "../../controller";
 import Bluetooth from "../../bluetooth";
-import Drone from "../../drone";
+//import Bluetooth from "../../bluetooth-mock";
+import MiniDrone, { Movement } from "../../mini-drone";
 import Logger from "../../logger";
 
 enum BluetoothStates {
@@ -30,7 +31,7 @@ interface ControllerState {
 }
 
 export default class Control extends Component<{}, ControllerState> {
-  drone: Drone;
+  drone: MiniDrone;
   controller: Controller;
   bluetooth: Bluetooth;
 
@@ -45,8 +46,11 @@ export default class Control extends Component<{}, ControllerState> {
   }
 
   componentDidMount() {
-    this.controller = new Controller();
-    this.controller.getMovement().subscribe(
+    this.bluetooth = new Bluetooth(Logger);
+    this.drone = new MiniDrone(this.bluetooth, Logger);
+
+    this.controller = new Controller(this.drone);
+    this.controller.movement.subscribe(
       movement => {
         this.setState({ movement });
       },
@@ -54,9 +58,6 @@ export default class Control extends Component<{}, ControllerState> {
         this.setState({ error });
       }
     );
-
-    this.bluetooth = new Bluetooth();
-    this.drone = new Drone(this.controller);
 
     Device.getOrientation().subscribe(
       orientation => {
@@ -70,12 +71,11 @@ export default class Control extends Component<{}, ControllerState> {
 
   connect() {
     this.setState({ bluetoothStatus: BluetoothStates.Connecting });
-    this.bluetooth
-      .connect(this.drone.getBlutoothDiscoveryOptions())
+    this.drone.connect()
       .then(() => {
-        this.setState({ bluetoothStatus: BluetoothStates.Connected });
-        return this.drone.connect(this.bluetooth).then(() => {
-          this.setState({ droneStatus: true });
+        this.setState({
+          bluetoothStatus: BluetoothStates.Connected,
+          droneStatus: true
         });
       })
       .catch(e => {
@@ -85,9 +85,9 @@ export default class Control extends Component<{}, ControllerState> {
         });
       });
 
-    this.bluetooth.getNotifications().subscribe(([id, event]) => {
+    /*this.bluetooth.getNotifications().subscribe(([id, event]) => {
       console.log("ctrl.bluetooth.notification", id, event);
-    });
+    });*/
   }
 
   render(props: {}, state: ControllerState, context: AppContext) {
@@ -131,8 +131,8 @@ export default class Control extends Component<{}, ControllerState> {
           <Button
             raised
             style={{ padding: "40px", lineHeight: "5px" }}
-            onTouchStart={() => this.drone.startMovement()}
-            onTouchEnd={() => this.drone.stopMovement()}
+            onTouchStart={() => this.controller.startMovement()}
+            onTouchEnd={() => this.controller.stopMovement()}
           >
             MOVE
           </Button>
@@ -156,14 +156,14 @@ export default class Control extends Component<{}, ControllerState> {
 
     return (
       <div>
-        {/*<pre>{JSON.stringify(this.state.orientation, null, 2)}</pre>
-
+        <pre>{JSON.stringify(this.state.orientation, null, 2)}</pre>
+{/*
           <h3>Center</h3>
-          <pre>{JSON.stringify(center, null, 2)}</pre>
-
-          <h3>Diff</h3>
-          <pre>{JSON.stringify(diff, null, 2)}</pre>
+          <pre>{JSON.stringify(this.controller.center, null, 2)}</pre>
 */}
+          <h3>Diff</h3>
+          <pre>{JSON.stringify(this.controller.diff, null, 2)}</pre>
+
         <h3>Movement</h3>
         <pre>{JSON.stringify(this.state.movement, null, 2)}</pre>
       </div>
