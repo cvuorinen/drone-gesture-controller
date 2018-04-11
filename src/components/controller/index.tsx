@@ -1,6 +1,7 @@
 import { h, Component } from "preact";
 import Button from "preact-material-components/Button";
 
+import { AppContext } from '../app';
 import Device, { DeviceOrientation } from "../../device";
 import Controller, { Movement } from "../../controller";
 import Bluetooth from "../../bluetooth";
@@ -89,13 +90,12 @@ export default class Control extends Component<{}, ControllerState> {
     });
   }
 
-  render() {
+  render(props: {}, state: ControllerState, context: AppContext) {
     return (
       <div>
-        <h2>Hello from ctrl</h2>
         {this.renderBluetoothControl()}
         {this.renderDroneControl()}
-        {this.renderOrientation()}
+        {this.renderOrientation(context.debug)}
       </div>
     );
   }
@@ -141,7 +141,7 @@ export default class Control extends Component<{}, ControllerState> {
     );
   }
 
-  renderOrientation() {
+  renderOrientation(debug: boolean) {
     if (this.state.error) {
       return <div>error: {this.state.error}</div>;
     }
@@ -150,8 +150,9 @@ export default class Control extends Component<{}, ControllerState> {
       return <div>waiting</div>;
     }
 
-    //const center = this.controller.center;
-    //const diff = this.controller.diff;
+    if (!debug) {
+      return;
+    }
 
     return (
       <div>

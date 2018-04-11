@@ -10,12 +10,16 @@ import "preact-material-components/Button/style.css";
 
 import Logger from "../../logger";
 
+interface HeaderProps {
+  onToggleDebug: (event: Event) => void;
+}
+
 interface HeaderState {
   darkThemeEnabled: boolean;
   log: string[];
 }
 
-export default class Header extends Component<{}, HeaderState> {
+export default class Header extends Component<HeaderProps, HeaderState> {
   dialog: any;
 
   constructor() {
@@ -54,7 +58,7 @@ export default class Header extends Component<{}, HeaderState> {
     });
   }
 
-  render() {
+  render(props: HeaderProps) {
     return (
       <div>
         <Toolbar className="toolbar">
@@ -71,7 +75,8 @@ export default class Header extends Component<{}, HeaderState> {
           <Dialog.Header>Settings</Dialog.Header>
           <Dialog.Body>
             <div>
-              Enable dark theme <Switch onClick={this.toggleDarkTheme} />
+              <Switch onClick={props.onToggleDebug} id="debug-mode" />
+              <label for="debug-mode">Debug mode</label>
             </div>
             <div class="log-output">
               <textarea>{this.state.log.join("")}</textarea>

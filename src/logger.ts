@@ -1,14 +1,22 @@
 import { Observable, Subject } from "rxjs";
 
+let debug = false;
 const messages = new Subject<string>();
 
 const Logger = {
+  setDebug(value: boolean) {
+    debug = value;
+  },
   get messages(): Observable<string> {
     return messages.asObservable();
   },
   write(level: string, ...values: any[]): void {
-    // log to regular console (comment out or filter by level when not want to log all, e.g. in prod)
+    // log to regular console
     (window as any)["console"][level](...values);
+
+    if (!debug && level === 'debug') {
+      return;
+    }
 
     // publish messages as observable (to display them in DOM etc.)
     // (useful for debugging in mobile when dev tools not easily available)
