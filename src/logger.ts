@@ -18,11 +18,13 @@ const Logger = {
       );
     } catch (e) {} // catch possible JSON.stringify errors
   },
-  log: (...values: any[]): void => Logger.write("log", ...values),
-  debug: (...values: any[]): void => Logger.write("debug", ...values),
-  info: (...values: any[]): void => Logger.write("info", ...values),
-  warn: (...values: any[]): void => Logger.write("warn", ...values),
-  error: (...values: any[]): void => Logger.write("error", ...values)
+
+  // compatibility with window.console
+  log: (message?: any, ...optionalParams: any[]): void => Logger.write("log", message, ...optionalParams),
+  debug: (message?: any, ...optionalParams: any[]): void => Logger.write("debug", message, ...optionalParams),
+  info: (message?: any, ...optionalParams: any[]): void => Logger.write("info", message, ...optionalParams),
+  warn: (message?: any, ...optionalParams: any[]): void => Logger.write("warn", message, ...optionalParams),
+  error: (message?: any, ...optionalParams: any[]): void => Logger.write("error", message, ...optionalParams)
 };
 
 export default Logger;
