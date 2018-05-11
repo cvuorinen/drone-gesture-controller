@@ -33,7 +33,6 @@ const Device = {
               throw "Device orientation not supported";
             }
 
-            // convert to our own DeviceOrientation type and round values
             return {
               alpha: Math.round(alpha),
               beta: Math.round(beta),

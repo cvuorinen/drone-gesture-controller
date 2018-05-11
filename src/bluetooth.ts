@@ -17,11 +17,7 @@ interface CharacteristicValueEvent extends Event {
   target: CharacteristicValueEventTarget
 }
 
-//type CharacteristicValueEvent = any;
-export type BluetoothNotification = [BluetoothCharacteristicUUID, CharacteristicValueEvent];
-
 export interface Bluetooth {
-  //getNotifications(): Observable<BluetoothNotification>;
   connect(discoveryOptions: RequestDeviceOptions): Promise<void>;
   startNotifications(
     serviceID: BluetoothServiceUUID,
@@ -44,12 +40,6 @@ export default class WebBluetooth implements Bluetooth {
   private services: { [index: string]: BluetoothRemoteGATTService } = {};
   private characteristics: { [index: string]: BluetoothRemoteGATTCharacteristic } = {};
 
-  //private notifications = new Subject<BluetoothNotification>();
-
-  /*getNotifications(): Observable<BluetoothNotification> {
-    return this.notifications.asObservable();
-  }*/
-
   constructor(
     private logger: Logger = window.console
   ) {}
@@ -71,7 +61,7 @@ export default class WebBluetooth implements Bluetooth {
   }
 
   private async discover(discoveryOptions: RequestDeviceOptions): Promise<void> {
-    const bluetooth = navigator.bluetooth;
+    const bluetooth = window.navigator.bluetooth;
 
     if (!bluetooth) {
       throw "Bluetooth not supported";
@@ -101,7 +91,6 @@ export default class WebBluetooth implements Bluetooth {
     }
   }
 
-  // TODO return as observable?
   public async startNotifications(
     serviceID: BluetoothServiceUUID,
     characteristicID: BluetoothCharacteristicUUID
@@ -127,9 +116,6 @@ export default class WebBluetooth implements Bluetooth {
     characteristicID: BluetoothCharacteristicUUID,
     command: Array<number>
   ): Promise<void> {
-    // TODO is this necessary?
-    //await this.connectGATT();
-
     const characteristic = await this.getCharacteristic(serviceID, characteristicID);
 
     this.logger.debug("Got characteristic, now write");
@@ -164,6 +150,10 @@ export default class WebBluetooth implements Bluetooth {
   }
 
   private async getService(serviceID: BluetoothServiceUUID): Promise<BluetoothRemoteGATTService> {
+    if (!this.connected) {
+      throw "Bluetooth not connected";
+    }
+
     if (this.services[serviceID]) {
       this.logger.debug("Return cached service", this.services[serviceID]);
       return this.services[serviceID];
