@@ -1,9 +1,11 @@
 import { h, Component } from "preact";
 import Button from "preact-material-components/Button";
+import Icon from "preact-material-components/Icon";
 
 import { AppContext } from '../app';
 import Device, { DeviceOrientation } from "../../device";
 import Controller from "../../controller";
+import SpeechController from "../../speech-controller";
 import Bluetooth from "../../bluetooth";
 //import Bluetooth from "../../bluetooth-mock";
 import MiniDrone, { Movement } from "../../mini-drone";
@@ -27,12 +29,14 @@ interface ControllerState {
   movement: Movement | null;
   bluetoothStatus: BluetoothStatus;
   droneStatus: boolean;
+  listening: boolean;
   error?: string;
 }
 
 export default class Control extends Component<{}, ControllerState> {
   drone: MiniDrone;
   controller: Controller;
+  speechController: SpeechController;
   bluetooth: Bluetooth;
 
   constructor() {
@@ -41,7 +45,8 @@ export default class Control extends Component<{}, ControllerState> {
       orientation: null,
       movement: null,
       bluetoothStatus: BluetoothStates.NotConnected,
-      droneStatus: false
+      droneStatus: false,
+      listening: false
     };
   }
 
@@ -58,6 +63,8 @@ export default class Control extends Component<{}, ControllerState> {
         this.setState({ error });
       }
     );
+
+    this.speechController = new SpeechController(this.drone);
 
     Device.getOrientation().subscribe(
       orientation => {
@@ -90,9 +97,21 @@ export default class Control extends Component<{}, ControllerState> {
     });*/
   }
 
+  toggleListening = () => {
+    try {
+      this.speechController.toggleListening();
+      this.setState({
+        listening: !this.state.listening
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   render(props: {}, state: ControllerState, context: AppContext) {
     return (
       <div>
+        {this.renderSpeechControl()}
         {this.renderBluetoothControl()}
         {this.renderDroneControl()}
         {this.renderOrientation(context.debug)}
@@ -115,16 +134,30 @@ export default class Control extends Component<{}, ControllerState> {
     );
   }
 
+  renderSpeechControl() {
+    if (!this.state.droneStatus) {
+      return <div></div>;
+    }
+
+    const className = this.state.listening ? 'listening pulse' : '';
+
+    return (
+      <a className={'voice-button ' + className} onClick={this.toggleListening}>
+        <Icon>mic</Icon>
+      </a>
+    );
+  }
+
   renderDroneControl() {
     if (!this.state.droneStatus) {
       return <div>Drone not connected</div>;
     }
 
     return (
-      <div>
+      <div style={{ clear: 'both', marginTop: '50px' }}>
         <Button onClick={() => this.drone.takeOff()}>Takeoff</Button>
         <Button onClick={() => this.drone.land()}>Land</Button>
-        <Button onClick={() => this.drone.emergencyCutOff()}>Emergency</Button>
+        <Button style={{ float: 'right' }} onClick={() => this.drone.emergencyCutOff()}>Emergency</Button>
         <div style={{ textAlign: "center" }}>
           <br />
           <br />

@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@types/web-bluetooth": "0.0.4",
+    "@types/webspeechapi": "0.0.29",
     "if-env": "^1.0.0",
     "preact-cli": "^2.0.0",
     "preact-cli-plugin-typescript": "^0.2.2"
