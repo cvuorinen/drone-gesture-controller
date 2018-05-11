@@ -3,13 +3,13 @@ import { map } from 'rxjs/operators';
 import { Bluetooth, Logger } from "./bluetooth";
 
 // interval for sending commands to the drone (in milliseconds)
-const PING_INTERVAL = 50;
+const DRIVE_INTERVAL = 100;
 
 // default value for movement commands (0-100)
 const DEFAULT_SPEED = 50;
 
 // default value for how many interval steps to keep moving
-const DEFAULT_DRIVE_STEPS = 40;
+const DEFAULT_DRIVE_STEPS = 1000 / DRIVE_INTERVAL;
 
 // Command identifiers from Parrot libARCommands
 // https://github.com/Parrot-Developers/libARCommands/blob/ARSDK3_version_3_1_0/Xml/MiniDrone_commands.xml
@@ -102,7 +102,7 @@ export type Movement = {
 
 // Class used to communicate with Parrot mini drones (Rolling Spider, Mambo etc.) via Bluetooth
 export default class MiniDrone {
-  private pingIntervalHandle: number;
+  private driveLoopTimeoutHandle: number;
 
   private speeds: Movement = {
     yaw: 0, // turn
@@ -113,6 +113,9 @@ export default class MiniDrone {
 
   // Remaining steps in a predefined movement
   private driveStepsRemaining: number = 0;
+
+  // Queued command that should be written on next drive loop
+  private queuedCommand: Array<number> | null = null;
 
   // Used to store the sequence number 'counter' that's sent to each characteristic
   private sequenceCounter: { [index: string]: number } = {};
@@ -136,63 +139,13 @@ export default class MiniDrone {
 
     await this.subscribeNotifications(BleReadCharacteristic.FlightStatus, this.handleFlightStatus);
     await this.subscribeNotifications(BleReadCharacteristic.BatteryStatus, this.handleBatteryStatus);
-    /*try {
-      (await this.bluetooth.startNotifications(BleService.Read, BleCharacteristic.ReadFlightStatus))
-        .pipe(map(event => new Uint8Array(event.target.value.buffer)))
-        .subscribe(this.handleFlightStatus);
-    } catch (error) {
-      this.logger.error("Failed to start notifications", BleCharacteristic.ReadFlightStatus, error);
-    }
-
-    try {
-      (await this.bluetooth.startNotifications(BleService.Read, BleCharacteristic.ReadBatteryStatus))
-        .pipe(map(event => new Uint8Array(event.target.value.buffer)))
-        .subscribe(this.handleBatteryStatus);
-    } catch (error) {
-      this.logger.error("Failed to start notifications", BleCharacteristic.ReadBatteryStatus, error);
-    }*/
-
-    /*const listenTo = [
-      [BleService.Read, BleCharacteristic.ReadBatteryStatus],
-      [BleService.Read, BleCharacteristic.ReadFlightStatus],
-      [BluetoothService.fb00, BluetoothCharacteristic.fb1b],
-      [BluetoothService.fb00, BluetoothCharacteristic.fb1c],
-      [BluetoothService.fd21, BluetoothCharacteristic.fd22],
-      [BluetoothService.fd21, BluetoothCharacteristic.fd23],
-      [BluetoothService.fd21, BluetoothCharacteristic.fd24],
-      [BluetoothService.fd51, BluetoothCharacteristic.fd52],
-      [BluetoothService.fd51, BluetoothCharacteristic.fd53],
-      [BluetoothService.fd51, BluetoothCharacteristic.fd54],
-    ];*/
-
-    /*const notifications = [];
-
-    for (let [service, characteristic] of listenTo) {
-      try {
-        notifications.push(
-          await this.bluetooth.startNotifications(service, characteristic)
-        );
-      } catch (error) {
-        this.logger.error("Failed to start notifications", error, characteristic);
-      }
-    }*/
 
     this.logger.debug("Finished starting notifications");
-
-    /*merge(...notifications)
-      .subscribe(([characteristicID, event]) =>
-        this.handleEvent(characteristicID, event)
-      );*/
-
-    /*this.bluetooth.getNotifications()
-      .subscribe(([characteristicID, event]) =>
-        this.handleEvent(characteristicID, event)
-      );*/
   }
 
   private async subscribeNotifications(
     characteristic: BleReadCharacteristic,
-    listener: (buffer: ArrayBuffer | ArrayLike<number>) => void
+    listener: (data: Uint8Array) => void
   ): Promise<void> {
     try {
       const notifications = await this.bluetooth.startNotifications(BleService.Read, characteristic);
@@ -205,9 +158,8 @@ export default class MiniDrone {
     }
   }
 
-  private handleBatteryStatus = (buffer: ArrayBuffer | ArrayLike<number>): void => {
-    const array = new Uint8Array(buffer);
-    const batteryLevel = array[array.length - 1];
+  private handleBatteryStatus = (data: Uint8Array): void => {
+    const batteryLevel = data[data.length - 1];
 
     this.logger.log(`Battery Level: ${batteryLevel}%`);
 
@@ -216,8 +168,8 @@ export default class MiniDrone {
     }
   };
 
-  private handleFlightStatus = (buffer: ArrayBuffer | ArrayLike<number>): void => {
-    const array = new Uint8Array(buffer);
+  private handleFlightStatus = (data: Uint8Array): void => {
+    // TODO set statuses in enum
     var eventList = [
       "fsLanded",
       "fsTakingOff",
@@ -227,13 +179,14 @@ export default class MiniDrone {
       "fsCutOff"
     ];
 
-    if (eventList[array[6]] === "fsHovering") {
+    if (eventList[data[6]] === "fsHovering") {
       this.logger.log("Hovering - ready to go");
     } else {
-      this.logger.log("Not hovering... Not ready", array[6]);
+      this.logger.log("Not hovering... Not ready", data[6]);
     }
 
-    if ([1, 2, 3, 4].indexOf(array[6]) >= 0) {
+    // TODO set actual flying status and use it to handle commands only when flying
+    if ([1, 2, 3, 4].indexOf(data[6]) >= 0) {
       this.logger.log("Flying");
     } else {
       this.logger.log("Not flying");
@@ -286,12 +239,12 @@ export default class MiniDrone {
     // TODO is this needed ??
     this.logger.debug("Handshake");
 
-    await this.bluetooth.write(
+    /*await this.bluetooth.write(
       BleService.Write,
       BleWriteCharacteristic.Cmd,
       [4, this.getSequenceNum(BleWriteCharacteristic.Cmd), 0, 4, 1, 0,
         0x32, 0x30, 0x31, 0x34, 0x2d, 0x31, 0x30, 0x2d, 0x32, 0x38, 0x00]
-    );
+    );*/
 
     this.logger.debug("Completed handshake");
   }
@@ -314,43 +267,87 @@ export default class MiniDrone {
   }
 
   public setMovement(speeds: Movement): void {
+    this.stopMovement();
+
     this.speeds = speeds;
   }
 
-  private startPing(): void {
-    this.logger.debug("Start ping");
+  private startDriveLoop(): void {
+    this.logger.debug("Start drive loop");
 
-    this.pingIntervalHandle = window.setInterval(() => {
-      this.logger.debug("Ping...", this.speeds);
+    this.driveLoopTimeoutHandle = window.setTimeout(this.driveLoop, DRIVE_INTERVAL);
+  }
 
-      this.bluetooth.write(
-        BleService.Write,
-        BleWriteCharacteristic.PCMD,
-        [
-          DataType.Normal,
-          this.getSequenceNum(BleWriteCharacteristic.PCMD),
-          FeatureID,
-          CmdClass.Piloting,
-          PilotingCmd.PCMD, 0,
-          this.isMoving() ? 1 : 0,
-          this.speeds.roll,
-          this.speeds.pitch,
-          this.speeds.yaw,
-          this.speeds.altitude,
-          0, 0, 0, 0, 0, 0, 0, 0]
-        ).catch(this.onBluetoothError);
+  private driveLoop = (): void => {
+    this.logger.debug("Drive...", this.speeds);
 
-      if (this.driveStepsRemaining > 0) {
-        this.driveStepsRemaining--;
+    const writePromise = this.queuedCommand
+      ? this.writeQueuedCommand()
+      : this.writePilotingCommand();
 
-        if (this.driveStepsRemaining === 0) {
-          this.logger.debug("Move complete, reset to hover state");
-          this.hover();
-        } else {
-          this.logger.debug("Drive steps remaining", this.driveStepsRemaining);
-        }
+    writePromise.then(() => {
+      this.driveLoopTimeoutHandle = window.setTimeout(this.driveLoop, DRIVE_INTERVAL);
+    });
+  }
+
+  private writePilotingCommand(): Promise<void> {
+    return this.bluetooth.write(
+      BleService.Write,
+      BleWriteCharacteristic.PCMD,
+      [
+        DataType.Normal,
+        this.getSequenceNum(BleWriteCharacteristic.PCMD),
+        FeatureID,
+        CmdClass.Piloting,
+        PilotingCmd.PCMD, 0,
+        this.isMoving() ? 1 : 0,
+        this.speeds.roll,
+        this.speeds.pitch,
+        this.speeds.yaw,
+        this.speeds.altitude,
+        0, 0, 0, 0, 0, 0, 0, 0]
+      ).then(this.handleDriveSteps)
+      .catch(this.onBluetoothError);
+  }
+
+  private handleDriveSteps = (): void => {
+    if (this.driveStepsRemaining > 0) {
+      this.driveStepsRemaining--;
+
+      if (this.driveStepsRemaining === 0) {
+        this.logger.debug("Move complete, reset to hover state");
+        this.hover();
+      } else {
+        this.logger.debug("Drive steps remaining", this.driveStepsRemaining);
       }
-    }, PING_INTERVAL);
+    }
+  }
+
+  private stopDriveLoop(): Promise<void> {
+    this.logger.debug("Stop drive loop");
+
+    if (this.driveLoopTimeoutHandle) {
+      window.clearTimeout(this.driveLoopTimeoutHandle);
+    }
+
+    // TODO: is this necessary??
+    return wait(DRIVE_INTERVAL);
+  }
+
+  private writeQueuedCommand(): Promise<void> {
+    if (!this.queuedCommand) {
+      return Promise.resolve();
+    }
+
+    this.logger.debug("writeQueuedCommand...");
+    const command = this.queuedCommand;
+    this.queuedCommand = null;
+
+    return this.bluetooth.write(
+      BleService.Write,
+      BleWriteCharacteristic.Cmd,
+      command
+    ).catch(this.onBluetoothError);
   }
 
   private isMoving(): boolean {
@@ -364,7 +361,6 @@ export default class MiniDrone {
 
   private onBluetoothError = (err: any) => {
     this.logger.error("Error!", err);
-    window.clearInterval(this.pingIntervalHandle);
   };
 
   public async takeOff(): Promise<void> {
@@ -388,33 +384,39 @@ export default class MiniDrone {
       this.logger.error("Error!", error);
     }
 
-    this.startPing();
+    this.startDriveLoop();
   }
 
-  public flip(direction: FlipDirection = FlipDirection.Front): Promise<void> {
+  public flip(direction: FlipDirection = FlipDirection.Front): void {
     this.logger.debug("Flip...");
 
-    return this.bluetooth.write(
-      BleService.Write,
-      BleWriteCharacteristic.Cmd,
-      [DataType.Ack, this.getSequenceNum(BleWriteCharacteristic.Cmd), FeatureID, CmdClass.Animations, AnimationsCmd.Flip, 0, direction, 0, 0, 0]
-    ).catch(this.onBluetoothError);
+    this.queuedCommand = [DataType.Ack, this.getSequenceNum(BleWriteCharacteristic.Cmd), FeatureID,
+      CmdClass.Animations, AnimationsCmd.Flip, 0, direction, 0, 0, 0];
+  }
+
+  public turn(degrees: number = 180): void {
+    this.logger.debug("Turn (cap)...");
+
+    this.queuedCommand = [DataType.Ack, this.getSequenceNum(BleWriteCharacteristic.Cmd), FeatureID,
+      CmdClass.Animations, AnimationsCmd.Cap, 0, degrees, 0, 0, 0];
   }
 
   public async land(): Promise<void> {
     this.logger.debug("Land...");
+
+    await this.stopDriveLoop();
 
     await this.bluetooth.write(
       BleService.Write,
       BleWriteCharacteristic.Cmd,
       [DataType.Ack, this.getSequenceNum(BleWriteCharacteristic.Cmd), FeatureID, CmdClass.Piloting, PilotingCmd.Landing, 0]
     ).catch(this.onBluetoothError);
-
-    clearInterval(this.pingIntervalHandle);
   }
 
   public async emergencyCutOff(): Promise<void> {
     this.logger.warn("Emergency cut off!");
+
+    this.stopDriveLoop();
 
     await this.bluetooth.write(
       BleService.Write,
@@ -422,18 +424,12 @@ export default class MiniDrone {
       // TODO should use HighPrio data type for this?
       [DataType.Normal, this.getSequenceNum(BleWriteCharacteristic.HighPrio), FeatureID, CmdClass.Piloting, PilotingCmd.Emergency, 0]
     ).catch(this.onBluetoothError);
-
-    clearInterval(this.pingIntervalHandle);
   }
 
   public hover(): void {
     this.logger.debug("Hover");
 
-    this.driveStepsRemaining = 0;
-    this.speeds.yaw = 0;
-    this.speeds.pitch = 0;
-    this.speeds.roll = 0;
-    this.speeds.altitude = 0;
+    this.stopMovement();
   }
 
   public moveForwards(): void {
@@ -445,21 +441,40 @@ export default class MiniDrone {
   }
 
   public moveLeft(): void {
-    this.startMovement("yaw", -DEFAULT_SPEED);
+    this.startMovement("roll", -DEFAULT_SPEED);
   }
 
   public moveRight(): void {
-    this.startMovement("yaw", DEFAULT_SPEED);
+    this.startMovement("roll", DEFAULT_SPEED);
   }
 
-  private startMovement(property: keyof Movement, speed: number, steps: number = DEFAULT_DRIVE_STEPS): void {
+  public moveUp(): void {
+    this.startMovement("altitude", DEFAULT_SPEED);
+  }
+
+  public moveDown(): void {
+    this.startMovement("altitude", -DEFAULT_SPEED);
+  }
+
+  private startMovement(
+    property: keyof Movement,
+    speed: number,
+    steps: number = DEFAULT_DRIVE_STEPS
+  ): void {
     this.logger.debug(`Start movement of ${property} with speed ${speed} for ${steps} steps`);
 
-    // cancel any previously running movement
-    this.hover();
+    this.stopMovement();
 
     this.speeds[property] = speed;
     this.driveStepsRemaining = steps;
+  }
+
+  private stopMovement(): void {
+    this.driveStepsRemaining = 0;
+    this.speeds.yaw = 0;
+    this.speeds.pitch = 0;
+    this.speeds.roll = 0;
+    this.speeds.altitude = 0;
   }
 }
 

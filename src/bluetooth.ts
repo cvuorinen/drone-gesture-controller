@@ -119,7 +119,7 @@ export default class WebBluetooth implements Bluetooth {
       throw error;
     }
 
-    return fromEvent<CharacteristicValueEvent>(characteristic, "characteristicvaluechanged");
+    return fromEvent<CharacteristicValueEvent>(characteristic as any, "characteristicvaluechanged");
   }
 
   public async write(
