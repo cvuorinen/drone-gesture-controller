@@ -1,21 +1,7 @@
-# preact material app
+# Drone gesture controller
 
-Super performant `Material` app for preact world using [preact-material-components](https://github.com/prateekbh/preact-material-components)
+Experimental Work-In-Progress PWA for flying a mini drone with a gesture based controller using Device orientation API.
 
-## CLI Commands
+Built on Preact CLI. For detailed explanation on how things work, checkout the [Preact CLI Readme](https://github.com/developit/preact-cli/blob/master/README.md).
 
-``` bash
-# install dependencies
-npm install
-
-# serve with hot reload at localhost:8080
-npm run dev
-
-# build for production with minification
-npm run build
-
-# test the production build locally
-npm run serve
-```
-
-For detailed explanation on how things work, checkout the [CLI Readme](https://github.com/developit/preact-cli/blob/master/README.md).
+See "scripts" in [package.json](package.json) for available commands.
