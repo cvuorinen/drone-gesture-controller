@@ -1,7 +1,8 @@
 import { Observable, interval } from "rxjs";
 import { map } from "rxjs/operators";
 
-import { Bluetooth, Logger } from "./bluetooth";
+import { Bluetooth } from "./bluetooth";
+import { Logger } from './logger';
 
 interface CharacteristicValueEventTarget extends EventTarget {
   value: {

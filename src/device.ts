@@ -8,16 +8,6 @@ export type DeviceOrientation = {
   gamma: number;
 };
 
-// see https://developer.mozilla.org/en-US/docs/Web/API/Screen/lockOrientation
-type OrientationLock =
-  | "portrait"
-  | "landscape"
-  | "default"
-  | "portrait-primary"
-  | "portrait-secondary"
-  | "landscape-primary"
-  | "landscape-secondary";
-
 const throttleAmount = Math.round(1000 / 30); // 30 fps
 
 const Device = {
@@ -45,19 +35,6 @@ const Device = {
           )
         )
     );
-  },
-  lockOrientation(lock?: OrientationLock | OrientationLock[]) {
-    if (!lock) {
-      // lock to current orientation if none provided
-      lock = (window as any).screen.orientation.type;
-    }
-
-    // TODO: need to trigger fullscreen mode first to make this work
-    // see example: https://whatwebcando.today/screen-orientation.html
-    (window as any).screen
-      .lockOrientation(lock)
-      // empty catch to prevent unhandled promise rejection when lock not supported
-      .catch(() => {});
   }
 };
 
