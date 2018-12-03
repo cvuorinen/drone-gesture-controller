@@ -1,6 +1,7 @@
 import { map } from 'rxjs/operators';
 
-import { Bluetooth, Logger } from "./bluetooth";
+import { Bluetooth } from "./bluetooth";
+import { Logger } from './logger';
 
 // interval for sending commands to the drone (in milliseconds)
 const DRIVE_INTERVAL = 100;
@@ -105,10 +106,10 @@ export default class MiniDrone {
   private driveLoopTimeoutHandle: number;
 
   private speeds: Movement = {
-    yaw: 0, // turn
-    pitch: 0, // forward/backward
-    roll: 0, // left/right
-    altitude: 0 // up/down
+    yaw: 0,
+    pitch: 0,
+    roll: 0,
+    altitude: 0
   };
 
   // Remaining steps in a predefined movement
@@ -192,48 +193,6 @@ export default class MiniDrone {
       this.logger.log("Not flying");
     }
   };
-
-  /*private handleEvent(characteristicID: BluetoothCharacteristicUUID, event: any) {
-    const array = new Uint8Array(event.target.value.buffer);
-
-    let a = [];
-    for (let i = 0; i < array.byteLength; i++) {
-      a.push("0x" + ("00" + array[i].toString(16)).slice(-2));
-    }
-
-    this.logger.log("Notification from " + characteristicID + ": " + a.join(" "));
-
-    if (characteristicID === BleCharacteristic.ReadFlightStatus) {
-      var eventList = [
-        "fsLanded",
-        "fsTakingOff",
-        "fsHovering",
-        "fsUnknown",
-        "fsLanding",
-        "fsCutOff"
-      ];
-
-      if (eventList[array[6]] === "fsHovering") {
-        this.logger.log("Hovering - ready to go");
-      } else {
-        this.logger.log("Not hovering... Not ready", array[6]);
-      }
-
-      if ([1, 2, 3, 4].indexOf(array[6]) >= 0) {
-        this.logger.log("Flying");
-      } else {
-        this.logger.log("Not flying");
-      }
-    } else if (characteristicID === BleCharacteristic.ReadBatteryStatus) {
-      const batteryLevel = array[array.length - 1];
-
-      this.logger.log(`Battery Level: ${batteryLevel}%`);
-
-      if (batteryLevel < 10) {
-        this.logger.error("Battery level too low!");
-      }
-    }
-  }*/
 
   private async handshake(): Promise<void> {
     // TODO is this needed ??
