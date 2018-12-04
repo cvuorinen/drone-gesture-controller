@@ -74,15 +74,17 @@ export default class WebBluetooth implements Bluetooth {
       throw "Invalid Bluetooth device";
     }
 
+    if (this.gattServer) {
+      this.logger.debug("Already connected to GATT server", this.gattServer);
+
+      return;
+    }
+
     this.logger.debug("Connect GATT");
 
-    const server = await this.device.gatt.connect();
+    this.gattServer = await this.device.gatt.connect();
 
-    this.logger.debug("GATT server", server, this.gattServer === server);
-
-    if (!this.gattServer) {
-      this.gattServer = server;
-    }
+    this.logger.debug("Connected GATT server", this.gattServer);
   }
 
   public async startNotifications(
